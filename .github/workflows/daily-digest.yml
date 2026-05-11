@@ -1,0 +1,35 @@
+name: Daily Digest Email
+
+on:
+  schedule:
+    - cron: "0 12 * * *"  # 12:00 UTC = 8:00 AM ET
+  workflow_dispatch:
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -e ".[dev]" --quiet
+
+      - name: Send daily digest
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+          ENVIRONMENT: production
+        run: |
+          cd backend
+          python scripts/digest_cron.py

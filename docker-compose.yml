@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  # ─── Backend (FastAPI) ────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env
+    environment:
+      - ENVIRONMENT=development
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - db
+
+  # ─── Frontend (Next.js) ───────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    env_file:
+      - ./frontend/.env.local
+    command: npm run dev
+    depends_on:
+      - backend
+
+  # ─── Local Postgres (for dev without Supabase) ───────────────────────────
+  db:
+    image: supabase/postgres:15.1.1.47
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: jobhawk
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d
+
+volumes:
+  postgres_data:
