@@ -20,19 +20,27 @@ litellm.set_verbose = False
 
 SCORING_MODELS = [
     "groq/llama-3.3-70b-versatile",
+    "groq/llama-3.1-8b-instant",
+    "groq/gemma2-9b-it",
     "gemini/gemini-2.0-flash",
+    "gemini/gemini-1.5-flash",
     "openrouter/meta-llama/llama-3.3-70b-instruct:free",
 ]
 
 DRAFTING_MODELS = [
     "gemini/gemini-2.0-flash",
+    "gemini/gemini-1.5-flash",
     "groq/llama-3.3-70b-versatile",
+    "groq/llama-3.1-8b-instant",
     "openrouter/google/gemini-2.0-flash-exp:free",
 ]
 
 PARSING_MODELS = [
     "groq/llama-3.3-70b-versatile",
+    "groq/llama-3.1-8b-instant",
+    "groq/gemma2-9b-it",
     "gemini/gemini-2.0-flash",
+    "gemini/gemini-1.5-flash",
     "openrouter/meta-llama/llama-3.3-70b-instruct:free",
 ]
 
@@ -50,6 +58,10 @@ def _set_api_keys() -> None:
 _set_api_keys()
 
 
+def _is_rate_limit(exc: Exception) -> bool:
+    return "rate" in str(exc).lower() or "429" in str(exc) or "quota" in str(exc).lower()
+
+
 def _call_with_fallback(
     models: list[str],
     messages: list[dict],
@@ -57,36 +69,46 @@ def _call_with_fallback(
     temperature: float = 0.2,
     max_tokens: int = 4096,
 ) -> tuple[str, dict]:
-    """Try each model in order; return (content, metadata)."""
+    """
+    Try each model in order. On rate-limit errors, wait briefly and retry
+    once before moving to the next model. Returns (content, metadata).
+    """
     last_error: Exception | None = None
     for model in models:
-        try:
-            start = time.monotonic()
-            kwargs: dict[str, Any] = {
-                "model": model,
-                "messages": messages,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-            }
-            if json_mode and "gemini" not in model and "openrouter" not in model:
-                kwargs["response_format"] = {"type": "json_object"}
+        for attempt in range(2):  # up to 2 attempts per model
+            try:
+                start = time.monotonic()
+                kwargs: dict[str, Any] = {
+                    "model": model,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+                if json_mode and "gemini" not in model and "openrouter" not in model:
+                    kwargs["response_format"] = {"type": "json_object"}
 
-            response = completion(**kwargs)
-            elapsed_ms = int((time.monotonic() - start) * 1000)
-            content = response.choices[0].message.content or ""
-            usage = response.usage or {}
-            metadata = {
-                "model": model,
-                "prompt_tokens": getattr(usage, "prompt_tokens", 0),
-                "completion_tokens": getattr(usage, "completion_tokens", 0),
-                "generation_time_ms": elapsed_ms,
-            }
-            logger.info("LLM call succeeded model=%s tokens=%s ms=%s", model, getattr(usage, "total_tokens", "?"), elapsed_ms)
-            return content, metadata
-        except Exception as exc:
-            logger.warning("LLM call failed model=%s error=%s", model, exc)
-            last_error = exc
-            continue
+                response = completion(**kwargs)
+                elapsed_ms = int((time.monotonic() - start) * 1000)
+                content = response.choices[0].message.content or ""
+                usage = response.usage or {}
+                metadata = {
+                    "model": model,
+                    "prompt_tokens": getattr(usage, "prompt_tokens", 0),
+                    "completion_tokens": getattr(usage, "completion_tokens", 0),
+                    "generation_time_ms": elapsed_ms,
+                }
+                logger.info("LLM call succeeded model=%s tokens=%s ms=%s", model, getattr(usage, "total_tokens", "?"), elapsed_ms)
+                return content, metadata
+
+            except Exception as exc:
+                last_error = exc
+                if _is_rate_limit(exc) and attempt == 0:
+                    wait = 30
+                    logger.warning("Rate limit on %s — waiting %ss before retry", model, wait)
+                    time.sleep(wait)
+                    continue
+                logger.warning("LLM call failed model=%s attempt=%s error=%s", model, attempt + 1, exc)
+                break  # move to next model
 
     raise RuntimeError(f"All LLM providers failed. Last error: {last_error}")
 

@@ -74,16 +74,37 @@ async def generate_custom_draft(body: CustomDraftRequest, user: CurrentUser = No
 
     client = get_supabase()
 
-    # Upsert company if provided
+    # Find or create company
     company_id = None
     if body.company_name.strip():
-        company_result = (
+        name = body.company_name.strip()
+        # Try to find existing company first
+        existing = (
             client.table("companies")
-            .upsert({"name": body.company_name.strip()}, on_conflict="name")
+            .select("id")
+            .eq("name", name)
+            .limit(1)
             .execute()
         )
-        if company_result.data:
-            company_id = company_result.data[0]["id"]
+        if existing.data:
+            company_id = existing.data[0]["id"]
+        else:
+            # Insert new company
+            try:
+                created = client.table("companies").insert({"name": name}).execute()
+                if created.data:
+                    company_id = created.data[0]["id"]
+            except Exception:
+                # If insert fails (race condition), try select again
+                fallback = (
+                    client.table("companies")
+                    .select("id")
+                    .eq("name", name)
+                    .limit(1)
+                    .execute()
+                )
+                if fallback.data:
+                    company_id = fallback.data[0]["id"]
 
     # Insert a manual job record
     job_result = client.table("jobs").insert({
