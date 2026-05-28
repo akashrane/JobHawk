@@ -15,6 +15,36 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 
+def is_us_location(location: str | None) -> bool:
+    if not location:
+        return False
+    loc = location.lower()
+    
+    us_terms = ["united states", "usa", " us ", ", us", "us remote"]
+    if any(term in loc for term in us_terms):
+        return True
+        
+    if loc == "us" or loc.startswith("us ") or loc.endswith(" us") or loc == "remote us" or loc == "remote - us":
+        return True
+        
+    us_states = {
+        "al", "ak", "az", "ar", "ca", "co", "ct", "de", "fl", "ga", 
+        "hi", "id", "il", "in", "ia", "ks", "ky", "la", "me", "md", 
+        "ma", "mi", "mn", "ms", "mo", "mt", "ne", "nv", "nh", "nj", 
+        "nm", "ny", "nc", "nd", "oh", "ok", "or", "pa", "ri", "sc", 
+        "sd", "tn", "tx", "ut", "vt", "va", "wa", "wv", "wi", "wy"
+    }
+    
+    # Check for state abbreviations like ", CA" or "- NY"
+    parts = [p.strip() for p in loc.replace("-", ",").split(",")]
+    for part in parts:
+        words = part.split()
+        if words and words[-1] in us_states:
+            return True
+
+    return False
+
+
 def main():
     from config import settings
     from db.client import get_supabase_admin
@@ -22,6 +52,7 @@ def main():
     from sources.lever import fetch_lever_jobs
     from sources.ashby import fetch_ashby_jobs
     from sources.dedup import is_duplicate, make_description_hash
+    from sources.jobspy_scraper import fetch_jobspy_jobs
 
     client = get_supabase_admin()
     start = time.monotonic()
@@ -58,6 +89,10 @@ def main():
                 continue
             stats["discovered"] += len(jobs)
             for job in jobs:
+                if not is_us_location(job.get("location")):
+                    stats["skipped"] += 1
+                    continue
+                
                 h = make_description_hash(company.get("name", ""), job["title"], job["description"])
                 if is_duplicate(client, job["source"], job.get("source_id"), h):
                     stats["skipped"] += 1
@@ -68,6 +103,27 @@ def main():
         except Exception as exc:
             logger.error("Error fetching %s/%s: %s", platform, slug, exc)
             stats["errors"] += 1
+
+    # 2.5 Fetch from JobSpy (LinkedIn, Indeed)
+    logger.info("Starting JobSpy discovery...")
+    try:
+        jobspy_jobs = fetch_jobspy_jobs(client, all_roles, all_locations)
+        stats["discovered"] += len(jobspy_jobs)
+        for job in jobspy_jobs:
+            if not is_us_location(job.get("location")):
+                stats["skipped"] += 1
+                continue
+            
+            company_name = job.pop("company_name", "")
+            h = make_description_hash(company_name, job["title"], job["description"])
+            if is_duplicate(client, job["source"], job.get("source_id"), h):
+                stats["skipped"] += 1
+                continue
+            job["description_hash"] = h
+            new_jobs.append(job)
+            stats["new"] += 1
+    except Exception as exc:
+        logger.error("Error fetching from JobSpy: %s", exc)
 
     # 3. Insert new jobs in batches (embeddings omitted until pgvector enabled in Phase 2)
     BATCH = 32

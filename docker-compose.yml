@@ -15,8 +15,6 @@ services:
     environment:
       - ENVIRONMENT=development
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    depends_on:
-      - db
 
   # ─── Frontend (Next.js) ───────────────────────────────────────────────────
   frontend:
@@ -24,7 +22,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3001:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -35,17 +33,3 @@ services:
     depends_on:
       - backend
 
-  # ─── Local Postgres (for dev without Supabase) ───────────────────────────
-  db:
-    image: supabase/postgres:15.1.1.47
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: jobhawk
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./supabase/migrations:/docker-entrypoint-initdb.d
-
-volumes:
-  postgres_data:
