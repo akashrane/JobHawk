@@ -4,11 +4,12 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~56.0.14",
-    "@react-native-async-storage/async-storage": "^3.1.0",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.106.2",
     "expo": "~56.0.6",
     "expo-constants": "~56.0.16",
     "expo-device": "~56.0.4",
+    "expo-document-picker": "~56.0.4",
     "expo-font": "~56.0.5",
     "expo-glass-effect": "~56.0.4",
     "expo-image": "~56.0.9",

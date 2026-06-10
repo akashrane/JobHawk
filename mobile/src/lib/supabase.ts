@@ -11,9 +11,16 @@ if (typeof global !== 'undefined' && !global.WebSocket) {
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
+// Dummy storage for Node.js environments (e.g., Expo web SSR) where window is not defined
+const dummyStorage = {
+  getItem: (key: string) => Promise.resolve(null),
+  setItem: (key: string, value: string) => Promise.resolve(),
+  removeItem: (key: string) => Promise.resolve(),
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
+    storage: typeof window === 'undefined' ? dummyStorage : AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

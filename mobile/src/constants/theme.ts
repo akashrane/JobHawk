@@ -9,18 +9,28 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: '#ffffff', // Forcing dark mode aesthetic even on light theme for premium feel
+    background: '#0a0f24', // Deep midnight blue
+    backgroundElement: '#141b36',
+    backgroundSelected: '#1e294a',
+    textSecondary: '#8d99ae',
+    accent: '#00e5ff', // Neon cyan
+    accentLight: 'rgba(0, 229, 255, 0.2)',
+    danger: '#ff2a55',
+    success: '#00d084',
+    warning: '#ff9f1c',
   },
   dark: {
     text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    background: '#0a0f24', 
+    backgroundElement: '#141b36',
+    backgroundSelected: '#1e294a',
+    textSecondary: '#8d99ae',
+    accent: '#00e5ff',
+    accentLight: 'rgba(0, 229, 255, 0.2)',
+    danger: '#ff2a55',
+    success: '#00d084',
+    warning: '#ff9f1c',
   },
 } as const;
 
