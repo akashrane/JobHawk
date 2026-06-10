@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  useAnimatedGestureHandler,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -24,7 +23,7 @@ interface Draft {
 export default function DraftDeck({ drafts, onComplete }: { drafts: Draft[], onComplete: () => void }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const handleAction = async (draftId: string, action: 'applied' | 'rejected') => {
+  const handleAction = async (draftId: string, action: 'approved' | 'rejected') => {
     setCurrentIndex(prev => prev + 1);
     
     // Update in supabase
@@ -75,27 +74,23 @@ const SwipeableCard = ({ draft, index, currentIndex, totalDrafts, onAction }: an
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
 
-  const gestureHandler = useAnimatedGestureHandler<PanGestureHandlerGestureEvent, { startX: number; startY: number }>({
-    onStart: (_, ctx) => {
-      ctx.startX = translateX.value;
-      ctx.startY = translateY.value;
-    },
-    onActive: (event, ctx) => {
-      translateX.value = ctx.startX + event.translationX;
-      translateY.value = ctx.startY + event.translationY;
-    },
-    onEnd: (event) => {
+  const panGesture = Gesture.Pan()
+    .enabled(isTop)
+    .onUpdate((event) => {
+      translateX.value = event.translationX;
+      translateY.value = event.translationY;
+    })
+    .onEnd((event) => {
       if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
         const direction = Math.sign(event.translationX);
         translateX.value = withTiming(direction * width * 1.5, { duration: 250 }, () => {
-          runOnJS(onAction)(direction > 0 ? 'applied' : 'rejected');
+          runOnJS(onAction)(direction > 0 ? 'approved' : 'rejected');
         });
       } else {
         translateX.value = withSpring(0);
         translateY.value = withSpring(0);
       }
-    },
-  });
+    });
 
   const animatedStyle = useAnimatedStyle(() => {
     if (!isTop) {
@@ -123,7 +118,7 @@ const SwipeableCard = ({ draft, index, currentIndex, totalDrafts, onAction }: an
   });
 
   return (
-    <PanGestureHandler onGestureEvent={isTop ? gestureHandler : undefined}>
+    <GestureDetector gesture={panGesture}>
       <Animated.View style={[styles.card, animatedStyle]}>
         <View style={styles.cardHeader}>
           <Text style={styles.draftBadge}>✨ AI Generated Draft</Text>
@@ -135,7 +130,7 @@ const SwipeableCard = ({ draft, index, currentIndex, totalDrafts, onAction }: an
           <Text style={styles.instruction}>Swipe Left to Pass  •  Swipe Right to Apply</Text>
         </View>
       </Animated.View>
-    </PanGestureHandler>
+    </GestureDetector>
   );
 };
 
