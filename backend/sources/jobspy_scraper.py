@@ -73,7 +73,7 @@ def fetch_jobspy_jobs(client: Client, roles: list[str], locations: list[str]) ->
             logger.info("JobSpy: searching for '%s' in '%s'", role, location)
             try:
                 jobs_df = scrape_jobs(
-                    site_name=["linkedin", "indeed"],
+                    site_name=["linkedin", "indeed", "glassdoor", "zip_recruiter", "google"],
                     search_term=role,
                     location=location,
                     results_wanted=20, # Keep per-query count low to reduce rate limiting

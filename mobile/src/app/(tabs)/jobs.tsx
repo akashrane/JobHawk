@@ -7,6 +7,7 @@ import { Colors } from '@/constants/theme';
 export default function JobsScreen() {
   const { session } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [discovering, setDiscovering] = useState(false);
   const [jobs, setJobs] = useState<any[]>([]);
 
   const fetchJobs = async () => {
@@ -28,6 +29,37 @@ export default function JobsScreen() {
   useEffect(() => {
     fetchJobs();
   }, [session]);
+
+  const handleDiscover = async () => {
+    if (!session?.user) return;
+    setDiscovering(true);
+    try {
+      let backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      if (backendUrl.includes('localhost') && process.env.EXPO_PUBLIC_HOST_IP) {
+        // Fallback for physical devices if needed, but fetch usually respects IP.
+      }
+      
+      const res = await fetch(`${backendUrl}/api/jobs/discover`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!res.ok) {
+        throw new Error(`Failed to discover jobs (${res.status})`);
+      }
+      
+      const result = await res.json();
+      Alert.alert('Discovery Complete', `Found ${result.new} new jobs out of ${result.discovered} scraped!`);
+      await fetchJobs();
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setDiscovering(false);
+    }
+  };
 
   const handleApply = async (jobId: string) => {
     if (!session?.user) return;
@@ -90,6 +122,17 @@ export default function JobsScreen() {
       <StatusBar barStyle="light-content" />
       <View style={styles.headerContainer}>
         <Text style={styles.headerText}>Discover</Text>
+        <TouchableOpacity 
+          style={[styles.discoverButton, discovering && styles.discoverButtonDisabled]} 
+          onPress={handleDiscover}
+          disabled={discovering}
+        >
+          {discovering ? (
+            <ActivityIndicator size="small" color={Colors.dark.background} />
+          ) : (
+            <Text style={styles.discoverButtonText}>Search Now</Text>
+          )}
+        </TouchableOpacity>
       </View>
       <FlatList
         data={jobs}
@@ -105,8 +148,24 @@ export default function JobsScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   container: { flex: 1, backgroundColor: Colors.dark.background, paddingHorizontal: 20 },
-  headerContainer: { marginTop: 60, marginBottom: 20 },
+  headerContainer: { marginTop: 60, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerText: { fontSize: 32, fontWeight: '900', color: Colors.dark.text, letterSpacing: -0.5 },
+  discoverButton: {
+    backgroundColor: Colors.dark.accent,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  discoverButtonDisabled: {
+    opacity: 0.6,
+  },
+  discoverButtonText: {
+    color: Colors.dark.background,
+    fontWeight: '800',
+    fontSize: 14,
+  },
   card: { 
     backgroundColor: Colors.dark.backgroundElement, 
     padding: 24, 
