@@ -1,4 +1,4 @@
-# 🦅 JobHawk 
+#  JobHawk 
 
 **The AI-Powered Job Application Agent**
 
@@ -6,13 +6,13 @@ A semi-autonomous AI agent that discovers jobs, scores them against your resume,
 
 ---
 
-## 🌟 Features
+##  Features
 * **AI Resume Parsing**: Automatically extracts skills, experience, and education using Llama/Gemini.
 * **Tinder-Style Job Swiper**: Review AI-generated job drafts on the mobile app. Swipe left to pass, swipe right to approve.
 * **Smart Job Matching**: Uses vector embeddings and LLM analysis to find jobs that perfectly align with your profile.
 * **Application Tracking**: A dedicated Kanban board to track your application pipeline (Saved, Applied, Interview, Offer).
 
-## 🏗️ Architecture
+##  Architecture
 
 ```mermaid
 graph LR
@@ -30,7 +30,7 @@ graph LR
 
 ---
 
-## 🚀 Quick Setup
+##  Quick Setup
 
 ### 1. Supabase Database
 1. Create a project at [supabase.com](https://supabase.com).
@@ -64,7 +64,7 @@ npx expo start -c
 
 ---
 
-## 📅 Roadmap
+##  Roadmap
 - [x] **Phase 1**: Foundation — Resume upload, DB schema, native mobile app shell.
 - [x] **Phase 2**: Job Discovery — Multi-source job scraping, ATS parsing, and LLM scoring pipeline.
 - [x] **Phase 3**: Mobile Swiper — Tinder-style UI for reviewing and approving AI drafts.
